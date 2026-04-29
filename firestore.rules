@@ -1,0 +1,155 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to get student account by Firebase UID
+    function getStudentAccount(uid) {
+      return get(/databases/$(database)/documents/student_accounts).where('firebase_uid', '==', uid).limit(1);
+    }
+    
+    // Helper function to check if user owns the student data
+    function isStudentOwner(studentRemoteId) {
+      let studentAccount = getStudentAccount(request.auth.uid);
+      return studentAccount.size > 0 && 
+             studentAccount[0].data.student_remote_id == studentRemoteId;
+    }
+    
+    // Helper function to get student's teacher UID
+    function getStudentTeacherUid(studentRemoteId) {
+      let studentAccount = getStudentAccount(request.auth.uid);
+      return studentAccount.size > 0 ? studentAccount[0].data.teacher_uid : null;
+    }
+    
+    // Teacher access (existing functionality)
+    match /users/{teacherUid}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == teacherUid;
+    }
+    
+    // Student Accounts Collection
+    match /student_accounts/{studentId} {
+      // Anyone can read to verify Student ID exists (for registration)
+      allow read: if request.auth != null;
+      
+      // Only the linked student can update their own account
+      allow update: if request.auth != null && 
+                     request.auth.uid == resource.data.firebase_uid;
+      
+      // Teachers can create student account entries (during sync)
+      allow create: if request.auth != null;
+      
+      // No one can delete student accounts (preserve data integrity)
+      allow delete: if false;
+    }
+    
+    // Student Data Access (Read-only for students)
+    match /users/{teacherUid}/students/{studentRemoteId} {
+      allow read: if isStudentOwner(studentRemoteId);
+      // Write access only for teachers (handled by rule above)
+    }
+    
+    match /users/{teacherUid}/grades/{gradeId} {
+      allow read: if isStudentOwnerOfGrade(gradeId, teacherUid);
+    }
+    
+    match /users/{teacherUid}/attendance/{attendanceId} {
+      allow read: if isStudentOwnerOfAttendance(attendanceId, teacherUid);
+    }
+    
+    match /users/{teacherUid}/assessment_scores/{scoreId} {
+      allow read: if isStudentOwnerOfScore(scoreId, teacherUid);
+    }
+    
+    match /users/{teacherUid}/interventions/{interventionId} {
+      allow read: if isStudentOwnerOfIntervention(interventionId, teacherUid);
+    }
+    
+    match /users/{teacherUid}/risk_flags/{riskId} {
+      allow read: if isStudentOwnerOfRiskFlag(riskId, teacherUid);
+    }
+    
+    match /users/{teacherUid}/class_students/{classStudentId} {
+      allow read: if isStudentOwnerOfClassStudent(classStudentId, teacherUid);
+    }
+    
+    // Classes, subjects, grading data - students can read their enrolled classes
+    match /users/{teacherUid}/classes/{classId} {
+      allow read: if isStudentEnrolledInClass(classId, teacherUid);
+    }
+    
+    match /users/{teacherUid}/grading_periods/{periodId} {
+      allow read: if isStudentEnrolledInPeriod(periodId, teacherUid);
+    }
+    
+    match /users/{teacherUid}/grading_categories/{categoryId} {
+      allow read: if isStudentEnrolledInCategory(categoryId, teacherUid);
+    }
+    
+    match /users/{teacherUid}/grading_assessments/{assessmentId} {
+      allow read: if isStudentEnrolledInAssessment(assessmentId, teacherUid);
+    }
+    
+    // Settings - students cannot access teacher settings
+    match /users/{teacherUid}/settings/{settingId} {
+      allow read, write: if false;
+    }
+    
+    // Helper functions for specific data types
+    function isStudentOwnerOfGrade(gradeId, teacherUid) {
+      let grade = get(/databases/$(database)/documents/users/$(teacherUid)/grades/$(gradeId)).data;
+      return isStudentOwner(grade.student_remote_id);
+    }
+    
+    function isStudentOwnerOfAttendance(attendanceId, teacherUid) {
+      let attendance = get(/databases/$(database)/documents/users/$(teacherUid)/attendance/$(attendanceId)).data;
+      return isStudentOwner(attendance.student_remote_id);
+    }
+    
+    function isStudentOwnerOfScore(scoreId, teacherUid) {
+      let score = get(/databases/$(database)/documents/users/$(teacherUid)/assessment_scores/$(scoreId)).data;
+      return isStudentOwner(score.student_remote_id);
+    }
+    
+    function isStudentOwnerOfIntervention(interventionId, teacherUid) {
+      let intervention = get(/databases/$(database)/documents/users/$(teacherUid)/interventions/$(interventionId)).data;
+      return isStudentOwner(intervention.student_remote_id);
+    }
+    
+    function isStudentOwnerOfRiskFlag(riskId, teacherUid) {
+      let risk = get(/databases/$(database)/documents/users/$(teacherUid)/risk_flags/$(riskId)).data;
+      return isStudentOwner(risk.student_remote_id);
+    }
+    
+    function isStudentOwnerOfClassStudent(classStudentId, teacherUid) {
+      let classStudent = get(/databases/$(database)/documents/users/$(teacherUid)/class_students/$(classStudentId)).data;
+      return isStudentOwner(classStudent.student_remote_id);
+    }
+    
+    function isStudentEnrolledInClass(classId, teacherUid) {
+      let studentTeacherUid = getStudentTeacherUid(null);
+      return studentTeacherUid == teacherUid && 
+             exists(/databases/$(database)/documents/users/$(teacherUid)/class_students)
+                 .where('student_remote_id', '==', getStudentRemoteId())
+                 .where('class_remote_id', '==', classId);
+    }
+    
+    function isStudentEnrolledInPeriod(periodId, teacherUid) {
+      let period = get(/databases/$(database)/documents/users/$(teacherUid)/grading_periods/$(periodId)).data;
+      return isStudentEnrolledInClass(period.class_remote_id, teacherUid);
+    }
+    
+    function isStudentEnrolledInCategory(categoryId, teacherUid) {
+      let category = get(/databases/$(database)/documents/users/$(teacherUid)/grading_categories/$(categoryId)).data;
+      return isStudentEnrolledInPeriod(category.grading_period_remote_id, teacherUid);
+    }
+    
+    function isStudentEnrolledInAssessment(assessmentId, teacherUid) {
+      let assessment = get(/databases/$(database)/documents/users/$(teacherUid)/grading_assessments/$(assessmentId)).data;
+      return isStudentEnrolledInCategory(assessment.category_remote_id, teacherUid);
+    }
+    
+    function getStudentRemoteId() {
+      let studentAccount = getStudentAccount(request.auth.uid);
+      return studentAccount.size > 0 ? studentAccount[0].data.student_remote_id : null;
+    }
+  }
+}
