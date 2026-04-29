@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "352028414871",
+    "firebase_url": "https://grade-book-99d84-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "grade-book-99d84",
+    "storage_bucket": "grade-book-99d84.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:352028414871:android:60bdbb841d2c424034aad2",
+        "android_client_info": {
+          "package_name": "com.zolina.grade_book"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "352028414871-e1tue5gsgstjlp5fmo160beffhomlkv5.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.zolina.grade_book",
+            "certificate_hash": "5f313dedfd10d3473e4ef583b341f94f2da04b6b"
+          }
+        },
+        {
+          "client_id": "352028414871-0385penrgm979h7na9q6g90nsdkrcij8.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDXLC3676L0LI5GDC38rpkpePVkQ4oWQak"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "352028414871-0385penrgm979h7na9q6g90nsdkrcij8.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
